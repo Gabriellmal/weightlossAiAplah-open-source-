@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeightLossAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@tailwindcss/browser@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Chat Styles */
+        #chat-messages {
+            height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #f0f0f0;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+        }
+        .message {
+            padding: 8px 12px;
+            border-radius: 16px;
+            margin-bottom: 5px;
+            display: inline-block;
+            clear: both;
+            max-width: 80%;
+        }
+        .user-message {
+            background-color: #e0f7fa;
+            color: #00897b;
+            float: right;
+            border-top-right-radius: 4px;
+        }
+        .ai-message {
+            background-color: #fce4ec;
+            color: #c2185b;
+            float: left;
+            border-top-left-radius: 4px;
+        }
+        #chat-input {
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            width: calc(100% - 100px);
+            margin-right: 10px;
+        }
+        #send-button {
+            border-radius: 8px;
+            padding: 10px 16px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #send-button:hover {
+            background-color: #45a049;
+        }
+        .typing-indicator {
+            display: inline-block;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #ccc;
+            margin: 0 2px;
+            animation: pulse 1.5s infinite;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 1s;
+        }
+        @keyframes pulse {
+            0% {
+                opacity: 0.2;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.2;
+            }
+        }
+        .suggested-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .suggested-question {
+            background-color: #e0e0e0;
+            padding: 6px 12px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        .suggested-question:hover {
+            background-color: #ccc;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <header class="bg-blue-500 text-white py-4 text-center shadow-md">
+        <h1 class="text-2xl font-semibold">WeightLossAI</h1>
+        <p class="text-lg">Your Personalized Weight Loss Journey</p>
+    </header>
+
+    <main class="container mx-auto py-6 flex-grow flex flex-col items-center">
+        <section id="initial-form" class="bg-white rounded-lg shadow-md p-6 w-full max-w-md transition-opacity duration-500 opacity-100">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 text-center">Get Your Personalized Plan</h2>
+            <form id="weight-form" class="space-y-4">
+                <div>
+                    <label for="weight" class="block text-gray-700 text-sm font-bold mb-2">Your Weight (kg):</label>
+                    <input type="number" id="weight" required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label for="height" class="block text-gray-700 text-sm font-bold mb-2">Your Height (cm):</label>
+                    <input type="number" id="height" required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label for="age" class="block text-gray-700 text-sm font-bold mb-2">Your Age:</label>
+                    <input type="number" id="age" required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label for="gender" class="block text-gray-700 text-sm font-bold mb-2">Your Gender:</label>
+                    <select id="gender" required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </div>
+                <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
+                    Get Your Plan
+                </button>
+            </form>
+            <div id="loading" class="text-center py-2 text-gray-600 hidden">
+                <img src="loading.gif" alt="Loading..." class="inline-block w-6 h-6 mr-2">
+                Loading...
+            </div>
+        </section>
+
+        <section id="plan-section" class="bg-white rounded-lg shadow-md p-6 w-full max-w-md mt-6 transition-opacity duration-500 opacity-0 hidden">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 text-center">Your Personalized Weight Loss Plan</h2>
+            <div id="plan-details" class="space-y-2 text-gray-700">
+                <p><span class="font-semibold">Weight:</span> <span id="display-weight"></span> kg</p>
+                <p><span class="font-semibold">Height:</span> <span id="display-height"></span> cm</p>
+                <p><span class="font-semibold">Age:</span> <span id="display-age"></span> years</p>
+                <p><span class="font-semibold">Gender:</span> <span id="display-gender"></span></p>
+                <p><span class="font-semibold">BMI:</span> <span id="display-bmi"></span></p>
+                <p><span class="font-semibold">Category:</span> <span id="display-category"></span></p>
+            </div>
+            <div id="diet-plan" class="mt-4 space-y-2">
+                <h3 class="text-lg font-semibold text-gray-800">Diet Plan:</h3>
+                <ul id="diet-list" class="list-disc list-inside">
+                    <li>Follow a balanced diet.</li>
+                    <li>Include plenty of fruits and vegetables.</li>
+                    <li>Limit processed foods and sugary drinks.</li>
+                </ul>
+            </div>
+            <div id="exercise-plan" class="mt-4 space-y-2">
+                <h3 class="text-lg font-semibold text-gray-800">Exercise Plan:</h3>
+                <ul id="exercise-list" class="list-disc list-inside">
+                    <li>Engage in regular physical activity.</li>
+                    <li>Aim for at least 30 minutes of moderate-intensity exercise most days of the week.</li>
+                    <li>Include both cardio and strength training.</li>
+                </ul>
+            </div>
+            <div id="additional-info" class="mt-4 space-y-2">
+                <h3 class="text-lg font-semibold text-gray-800">Additional Information:</h3>
+                <p id="info-text">Remember, this is a general plan. Consult with a healthcare professional or registered dietitian for personalized advice.</p>
+            </div>
+        </section>
+
+        <section id="chat-section" class="bg-white rounded-lg shadow-md p-6 w-full max-w-md mt-6 transition-opacity duration-500 opacity-0 hidden">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 text-center">Chat with WeighAI</h2>
+            <div id="chat-messages" class="space-y-2 mb-4">
+                </div>
+            <div class="suggested-questions">
+                <span class="suggested-question" data-question="Tell me about my diet plan.">Diet Plan</span>
+                <span class="suggested-question" data-question="What is my BMI?">What is my BMI?</span>
+                <span class="suggested-question" data-question="General weight loss tips?">Weight Loss Tips</span>
+                <span class="suggested-question" data-question="About WeighAI?">About WeighAI</span>
+                <span class="suggested-question" data-question="How is the weather?">Weather</span>
+                <span class="suggested-question" data-question="What should I eat today?">Meal Suggestion</span>
+                <span class="suggested-question" data-question="How much should I exercise?">Exercise量</span>
+                 <span class="suggested-question" data-question="What is a healthy weight?">Healthy Weight</span>
+                  <span class="suggested-question" data-question="Are there any side effects?">Side Effects</span>
+                   <span class="suggested-question" data-question="Can you help me with my mental health?">Mental Health</span>
+            </div>
+            <div class="flex space-x-2">
+                <input type="text" id="chat-input" placeholder="Type your message..." required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <button id="send-button" class="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Send
+                </button>
+            </div>
+            <div id="typing-indicator" class="typing-indicator hidden">
+                <span></span><span></span><span></span>
+            </div>
+        </section>
+
+        <section id="about-section" class="bg-white rounded-lg shadow-md p-6 w-full max-w-md mt-6 transition-opacity duration-500 opacity-0 hidden">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 text-center">About WeightLossAI</h2>
+            <p class="text-gray-700 mb-4">
+                WeightLossAI is a virtual assistant designed to provide personalized weight loss plans and support.
+                It uses your personal information to generate a tailored diet and exercise plan to help you achieve your
+                weight loss goals.
+            </p>
+            <p class="text-gray-700 mb-4">
+                This is version 0.4 of WeightLossAI, developed by Gabriel.
+            </p>
+            <p class="text-gray-700">
+                We are continuously working to improve WeightLossAI to provide the best possible support for your weight loss journey.
+            </p>
+        </section>
+    </main>
+
+    <footer class="bg-gray-200 text-gray-600 py-4 text-center mt-8">
+        <p>© 2023 WeightLossAI. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const weightForm = document.getElementById('weight-form');
+        const planSection = document.getElementById('plan-section');
+        const chatSection = document.getElementById('chat-section');
+        const aboutSection = document.getElementById('about-section');
+        const initialFormSection = document.getElementById('initial-form');
+        const loadingIndicator = document.getElementById('loading');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const suggestedQuestionsContainer = document.querySelector('.suggested-questions');
+
+        const displayWeight = document.getElementById('display-weight');
+        const displayHeight = document.getElementById('display-height');
+        const displayAge = document.getElementById('display-age');
+        const displayGender = document.getElementById('display-gender');
+        const displayBmi = document.getElementById('display-bmi');
+        const displayCategory = document.getElementById('display-category');
+
+        const chatInput = document.getElementById('chat-input');
+        const sendButton = document.getElementById('send-button');
+        const chatMessages = document.getElementById('chat-messages');
+
+        let planGenerated = false;
+        const geminiApiKey = 'YOUR_GEMINI_API_KEY'; // Replace with your actual API key
+
+        // Predefined questions and answers
+        const predefinedQuestions = {
+            "tell me about my diet plan.": "Okay, here's your diet plan from your personalized information: Follow a balanced diet, Include plenty of fruits and vegetables, Limit processed foods and sugary drinks.",
+            "what is my bmi?": "Alright, your BMI is " + document.getElementById('display-bmi').textContent + ".",
+            "general weight loss tips?": "For general weight loss tips: eat a balanced diet, exercise regularly, stay hydrated, get enough sleep, and manage stress.",
+            "about weighai?": "I am WeighAI, a weight loss assistant created by Gabriel. I'm here to provide personalized plans and support. I am version 0.4.",
+            "how is the weather?": "I am unable to provide weather information at this time. Please check a weather app.",
+            "what should i eat today?": "I cannot provide specific meal suggestions. Please refer to your diet plan and consult a nutritionist.",
+            "how much should i exercise?": "Please refer to the exercise plan generated for you.",
+            "what is a healthy weight?": "A healthy weight is within the normal range of BMI, which is 18.5 to 24.9.  However, please consult your doctor.",
+            "are there any side effects?": "I am an AI and cannot provide medical advice.  Please consult a healthcare professional.",
+            "can you help me with my mental health?": "I am an AI and cannot provide mental health support.  Please seek help from a qualified professional."
+        };
+
+        weightForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            const weight = parseFloat(document.getElementById('weight').value);
+            const height = parseFloat(document.getElementById('height').value);
+            const age = parseInt(document.getElementById('age').value);
+            const gender = document.getElementById('gender').value;
+
+            if (isNaN(weight) || isNaN(height) || isNaN(age) || weight <= 0 || height <= 0 || age <= 0) {
+                alert('Please enter valid positive numbers for weight, height, and age.');
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden');
+            initialFormSection.classList.add('opacity-50', 'pointer-events-none');
+
+            setTimeout(() => {
+                const bmi = calculateBMI(weight, height);
+                const category = getCategory(bmi);
+                displayWeight.textContent = weight;
+                displayHeight.textContent = height;
+                displayAge.textContent = age;
+                displayGender.textContent = gender;
+                displayBmi.textContent = bmi.toFixed(2);
+                displayCategory.textContent = category;
+
+                displayPlan(category);
+                loadingIndicator.classList.add('hidden');
+                initialFormSection.classList.add('hidden');
+                planSection.classList.remove('hidden');
+                planSection.classList.remove('opacity-0');
+                chatSection.classList.remove('hidden');
+                chatSection.classList.remove('opacity-0');
+                aboutSection.classList.remove('hidden');
+                aboutSection.classList.remove('opacity-0');
+                planGenerated = true;
+            }, 2000);
+        });
+
+        function calculateBMI(weight, height) {
+            const heightInMeters = height / 100;
+            return weight / (heightInMeters * heightInMeters);
+        }
+
+        function getCategory(bmi) {
+            if (bmi < 18.5) {
+                return 'Underweight';
+            } else if (bmi < 25) {
+                return 'Normal Weight';
+            } else if (bmi < 30) {
+                return 'Overweight';
+            } else {
+                return 'Obese';
+            }
+        }
+
+        function displayPlan(category) {
+            const dietList = document.getElementById('diet-list');
+            const exerciseList = document.getElementById('exercise-list');
+
+            dietList.innerHTML = '';
+            exerciseList.innerHTML = '';
+
+            let dietPlan = [];
+            let exercisePlan = [];
+
+            if (category === 'Underweight') {
+                dietPlan = [
+                    'Eat more frequent meals throughout the day.',
+                    'Choose nutrient-rich foods like whole grains, lean proteins, and healthy fats.',
+                    'Include snacks between meals, such as nuts, seeds, and dried fruit.',
+                    'Consider adding healthy fats like avocado, olive oil, and nuts to your meals.',
+                    'Drink smoothies or shakes with protein powder and fruits.'
+                ];
+                exercisePlan = [
+                    'Engage in strength training exercises to build muscle mass.',
+                    'Focus on compound exercises like squats, deadlifts, and bench presses.',
+                    'Include moderate cardiovascular exercise, such as brisk walking or cycling.',
+                    'Avoid excessive cardio, which can burn too many calories.',
+                    'Consider working with a personal trainer to develop a tailored plan.'
+                ];
+            } else if (category === 'Normal Weight') {
+                dietPlan = [
+                    'Maintain a balanced diet with a variety of fruits, vegetables, and whole grains.',
+                    'Choose lean protein sources like chicken, fish, and beans.',
+                    'Limit processed foods, sugary drinks, and unhealthy fats.',
+                    'Pay attention to portion sizes to avoid overeating.',
+                    'Stay hydrated by drinking plenty of water throughout the day.'
+                ];
+                exercisePlan = [
+                    'Continue with regular physical activity, aiming for at least 150 minutes of moderate-intensity exercise per week.',
+                    'Include a mix of cardiovascular exercise and strength training.',
+                    'Try different activities to stay motivated, such as swimming, running, or dancing.',
+                    'Incorporate flexibility exercises like yoga or stretching.',
+                    'Listen to your body and take rest days when needed.'
+                ];
+            } else if (category === 'Overweight') {
+                dietPlan = [
+                    'Focus on reducing calorie intake to create a calorie deficit.',
+                    'Choose low-calorie, nutrient-dense foods like vegetables, fruits, and whole grains.',
+                    'Increase protein intake to help with satiety and preserve muscle mass.',
+                    'Limit or avoid sugary drinks, processed foods, and unhealthy fats.',
+                    'Drink plenty of water to help with fullness and hydration.'
+                ];
+                exercisePlan = [
+                    'Increase the intensity and duration of your workouts.',
+                    'Aim for at least 200-250 minutes of moderate-intensity exercise per week.',
+                    'Include a combination of cardiovascular exercise and strength training.',
+                    'Focus on exercises that burn more calories, such as running, cycling, or swimming.',
+                    'Consider working with a personal trainer to create an effective plan.'
+                ];
+            } else {
+                dietPlan = [
+                    'Work with a registered dietitian to create a personalized diet plan.',
+                    'Focus on significant calorie reduction under professional supervision.',
+                    'Choose low-calorie, high-nutrient foods with an emphasis on vegetables and lean protein.',
+                    'Eliminate sugary drinks, processed foods, and unhealthy fats completely.',
+                    'Monitor your progress closely with your dietitian.'
+                ];
+                exercisePlan = [
+                    'Consult with a healthcare professional before starting any exercise program.',
+                    'Begin with low-impact activities and gradually increase intensity as advised.',
+                    'Focus on cardiovascular exercise to burn calories.',
+                    'Include strength training to preserve muscle mass, under supervision.',
+                    'Regular monitoring and adjustments by a professional are crucial.'
+                ];
+            }
+
+            dietPlan.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item;
+                dietList.appendChild(li);
+            });
+
+            exercisePlan.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item;
+                exerciseList.appendChild(li);
+            });
+        }
+
+        sendButton.addEventListener('click', () => {
+            const message = chatInput.value;
+            if (message.trim() === '') return;
+
+            displayMessage('You', message, true);
+            chatInput.value = '';
+            typingIndicator.classList.remove('hidden');
+
+            // Check if the question is in our predefined list
+            const predefinedAnswer = predefinedQuestions[message.toLowerCase()];
+            if (predefinedAnswer) {
+                displayMessage('WeighAI', predefinedAnswer, false);
+                typingIndicator.classList.add('hidden');
+            } else {
+                // Use a search engine (DuckDuckGo in this case) to get the answer
+                fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(message)}&format=json`)
+                    .then(response => response.json())
+                    .then(data => {
+                        let answer = "I couldn't find a good answer.";
+                        if (data.AbstractText) {
+                            answer = data.AbstractText;
+                        } else if (data.Answer) {
+                            answer = data.Answer;
+                        } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+                            answer = data.RelatedTopics[0].Text || "I found some related information.";
+                        }
+                        displayMessage('WeighAI', answer, false);
+                        typingIndicator.classList.add('hidden');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        displayMessage('WeighAI', "Sorry, I couldn't connect to the search engine.", false);
+                        typingIndicator.classList.add('hidden');
+                    });
+            }
+        });
+
+        function displayMessage(sender, message, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', isUser ? 'user-message' : 'ai-message');
+            messageDiv.textContent = `${sender}: ${message}`;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Add suggested questions to the chat interface
+        const suggestedQuestions = [
+            "Tell me about my diet plan.",
+            "What is my BMI?",
+            "General weight loss tips?",
+            "About WeighAI?",
+            "How is the weather?",
+            "What should I eat today?",
+            "How much should I exercise?",
+            "What is a healthy weight?",
+            "Are there any side effects?",
+            "Can you help me with my mental health?"
+        ];
+
+        suggestedQuestions.forEach(question => {
+            const questionSpan = document.createElement('span');
+            questionSpan.classList.add('suggested-question');
+            questionSpan.textContent = question;
+            questionSpan.dataset.question = question; // Store the question text
+            suggestedQuestionsContainer.appendChild(questionSpan);
+        });
+
+        // Event listener for suggested questions
+        suggestedQuestionsContainer.addEventListener('click', (event) => {
+            if (event.target.classList.contains('suggested-question')) {
+                const question = event.target.dataset.question;
+                chatInput.value = question; // Populate the input field with the question
+                sendButton.click();             // Simulate a click on the send button
+            }
+        });
+    </script>
+</body>
+</html>
